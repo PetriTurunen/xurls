@@ -1,10 +1,10 @@
-module mvdan.cc/xurls/v2
+module github.com/PetriTurunen/xurls/v2
 
 go 1.18
 
 require (
 	github.com/rogpeppe/go-internal v1.9.0
-	golang.org/x/mod v0.7.0
+	golang.org/x/mod v0.8.0
 	golang.org/x/sync v0.1.0
 )
 
