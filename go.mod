@@ -1,4 +1,4 @@
-module mvdan.cc/xurls/v2
+module github.com/PetriTurunen/xurls/v2
 
 go 1.20
 
