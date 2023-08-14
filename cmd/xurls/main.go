@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -26,11 +25,13 @@ import (
 )
 
 var (
-	matching = flag.String("m", "", "")
-	relaxed  = flag.Bool("r", false, "")
-	fix      boolString
-	version  = flag.Bool("version", false, "")
+	matching    = flag.String("m", "", "")
+	relaxed     = flag.Bool("r", false, "")
+	fix         boolString
+	versionFlag = flag.Bool("version", false, "")
 )
+
+var version string
 
 type boolString string
 
@@ -89,7 +90,7 @@ func scanPath(re *regexp.Regexp, path string) error {
 	scanner := bufio.NewScanner(in)
 
 	// Doesn't need to be part of reporterState as order doesn't matter.
-	var atomicFixedCount uint32
+	var fixedCount atomic.Uint32
 
 	for scanner.Scan() {
 		line := scanner.Text() + "\n"
@@ -175,7 +176,7 @@ func scanPath(re *regexp.Regexp, path string) error {
 					newLine := line[:pair[0]] + fixed + line[pair[1]:]
 					offsetWithinLine += len(newLine) - len(line)
 					line = newLine
-					atomic.AddUint32(&atomicFixedCount, 1)
+					fixedCount.Add(1)
 				}
 			}
 			io.WriteString(r, line) // add the fixed line to outBuf
@@ -190,12 +191,12 @@ func scanPath(re *regexp.Regexp, path string) error {
 		panic("we aren't using sequencer for any errors")
 	}
 	// Note that all goroutines have stopped at this point.
-	if atomicFixedCount > 0 && path != "-" {
+	if fixedCount.Load() > 0 && path != "-" {
 		in.Close()
 		// Overwrite the file, if we weren't reading stdin. Report its
 		// path too.
 		fmt.Println(path)
-		if err := ioutil.WriteFile(path, outBuf.Bytes(), 0o666); err != nil {
+		if err := os.WriteFile(path, outBuf.Bytes(), 0o666); err != nil {
 			return err
 		}
 	}
@@ -214,7 +215,7 @@ func main() { os.Exit(main1()) }
 
 func main1() int {
 	flag.Parse()
-	if *version {
+	if *versionFlag {
 		fmt.Println(readVersion())
 		return 0
 	}
@@ -258,6 +259,9 @@ func main1() int {
 // Borrowed from https://github.com/burrowers/garble.
 
 func readVersion() string {
+	if version != "" {
+		return version
+	}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return "unknown"
